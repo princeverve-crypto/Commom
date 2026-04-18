@@ -3,9 +3,7 @@ set -euo pipefail
 
 # SessionStart hook for JOSYEL Fleet Intelligence System
 # Installs dependencies for backend (Node.js) and frontend (React)
-# Runs on web session startup to ensure tests and linters are ready
-
-echo '{"async": true, "asyncTimeout": 300000}'
+# Runs synchronously on web session startup - guarantees readiness before session starts
 
 cd "${CLAUDE_PROJECT_DIR:-.}"
 
