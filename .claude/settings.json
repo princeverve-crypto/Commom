@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(npm run *)",
+      "Bash(docker build *)",
+      "Bash(docker push *)",
+      "Bash(git push origin claude/*)",
+      "Bash(git push origin development)",
+      "Bash(git push origin main)",
+      "Read",
+      "Edit",
+      "Write(.claude)",
+      "Glob",
+      "Grep"
+    ]
+  },
+  "env": {
+    "WIALON_API_URL": "https://hosting.wialon.com/gps/",
+    "WIALON_TOKEN": "your-token-here",
+    "DATABASE_URL": "postgresql://user:password@localhost:5432/josyel",
+    "REDIS_URL": "redis://localhost:6379",
+    "ALERT_SMS_PROVIDER": "twilio",
+    "JWT_SECRET": "dev-secret-key",
+    "FUEL_LOSS_THRESHOLD_PCT": "5",
+    "FUEL_DROP_WINDOW_MS": "120000",
+    "FUEL_VOLUME_VARIANCE_L": "2",
+    "ALERT_DEDUP_WINDOW_MS": "300000",
+    "WIALON_POLLING_INTERVAL_MS": "30000",
+    "NODE_ENV": "development"
+  },
+  "alwaysThinkingEnabled": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "timeout": 300,
+            "statusMessage": "Setting up JOSYEL dependencies..."
+          }
+        ]
+      }
+    ]
+  }
+}
