@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOSYEL Fleet Intelligence — Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #020812; overflow: hidden; font-family: 'Courier New', monospace; }
+  #canvas { display: block; }
+  #ui {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 10;
+  }
+  #header {
+    position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+    text-align: center; pointer-events: none;
+  }
+  #header h1 {
+    font-size: 28px; letter-spacing: 8px; text-transform: uppercase;
+    color: #00fff7; text-shadow: 0 0 20px #00fff7, 0 0 40px #00fff7, 0 0 80px #00fff7;
+    font-weight: 300;
+  }
+  #header p {
+    font-size: 11px; letter-spacing: 4px; color: #00fff788;
+    margin-top: 6px; text-transform: uppercase;
+  }
+  #legend {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 32px; pointer-events: none;
+  }
+  .leg-item { display: flex; align-items: center; gap: 8px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .leg-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; }
+  #tagline {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 3px; color: #ffffff44;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  #drag-hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; letter-spacing: 2px; color: #ffffff22; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="ui">
+  <div id="header">
+    <h1>JOSYEL</h1>
+    <p>Fleet Intelligence System — Architecture Overview</p>
+  </div>
+  <div id="tagline">Real-Time Tracking · Fuel Theft Prevention · Driver Monitoring</div>
+  <div id="legend">
+    <div class="leg-item">
+      <div class="leg-dot" style="background:#ff6b35;box-shadow:0 0 10px #ff6b35"></div>
+      <span class="leg-label" style="color:#ff6b35">Teltonika Devices</span>
+    </div>
+    <div class="leg-item">
+      <div class="leg-dot" style="background:#00fff7;box-shadow:0 0 10px #00fff7"></div>
+      <span class="leg-label" style="color:#00fff7">Wialon Cloud</span>
+    </div>
+    <div class="leg-item">
+      <div class="leg-dot" style="background:#bf5fff;box-shadow:0 0 10px #bf5fff"></div>
+      <span class="leg-label" style="color:#bf5fff">JOSYEL Backend</span>
+    </div>
+    <div class="leg-item">
+      <div class="leg-dot" style="background:#00ff88;box-shadow:0 0 10px #00ff88"></div>
+      <span class="leg-label" style="color:#00ff88">Dashboard UI</span>
+    </div>
+  </div>
+  <div id="drag-hint">drag to rotate · scroll to zoom</div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H, cx, cy;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2; cy = H / 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Camera state
+let rotX = -0.25, rotY = 0.3;
+let targetRotX = rotX, targetRotY = rotY;
+let drag = false, lastMX, lastMY;
+let zoom = 1, targetZoom = 1;
+
+canvas.addEventListener('mousedown', e => { drag = true; lastMX = e.clientX; lastMY = e.clientY; });
+canvas.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx = (e.clientX - lastMX) * 0.008;
+  const dy = (e.clientY - lastMY) * 0.006;
+  targetRotY += dx; targetRotX += dy;
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+canvas.addEventListener('mouseup', () => drag = false);
+canvas.addEventListener('mouseleave', () => drag = false);
+canvas.addEventListener('wheel', e => {
+  targetZoom = Math.max(0.5, Math.min(2.2, targetZoom - e.deltaY * 0.001));
+});
+
+// 3D math
+function project(x, y, z) {
+  // Rotate X
+  const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+  let y2 = y * cosX - z * sinX;
+  let z2 = y * sinX + z * cosX;
+  // Rotate Y
+  const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+  let x2 = x * cosY + z2 * sinY;
+  let z3 = -x * sinY + z2 * cosY;
+  // Perspective
+  const fov = 600 * zoom;
+  const d = fov / (fov + z3 + 400);
+  return { sx: cx + x2 * d, sy: cy + y2 * d, d, z: z3 };
+}
+
+// Architecture layers
+const LAYERS = [
+  { id: 'devices',   label: 'TELTONIKA DEVICES',  sub: 'FMC130 · FMC640 · GPS + CAN',  y: 260,  color: '#ff6b35', glow: '#ff6b3588', shape: 'diamond' },
+  { id: 'wialon',    label: 'WIALON CLOUD',        sub: 'Telematics · CAN Parser · Rules', y: 80,  color: '#00fff7', glow: '#00fff788', shape: 'hexagon' },
+  { id: 'backend',   label: 'JOSYEL BACKEND',      sub: 'Node.js · Fuel Detection · Alerts', y: -100, color: '#bf5fff', glow: '#bf5fff88', shape: 'box' },
+  { id: 'dashboard', label: 'FLEET DASHBOARD',     sub: 'React · Live Map · Analytics',   y: -280, color: '#00ff88', glow: '#00ff8888', shape: 'screen' },
+];
+
+// Data packets flowing between layers
+const packets = [];
+for (let i = 0; i < 18; i++) {
+  packets.push({
+    segment: i % 3,
+    t: Math.random(),
+    speed: 0.003 + Math.random() * 0.004,
+    trail: Math.random() > 0.5,
+    side: (Math.random() - 0.5) * 120,
+  });
+}
+
+// Floating particles
+const stars = Array.from({ length: 180 }, () => ({
+  x: (Math.random() - 0.5) * 1400,
+  y: (Math.random() - 0.5) * 1400,
+  z: (Math.random() - 0.5) * 1400,
+  r: Math.random() * 1.2,
+}));
+
+// Grid dots for platform faces
+function drawNode(x, y, r, color, glow, label, sub, alpha = 1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // Outer glow
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3.5);
+  grad.addColorStop(0, glow.replace('88', 'cc'));
+  grad.addColorStop(1, glow.replace('88', '00'));
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(x, y, r * 3.5, 0, Math.PI * 2); ctx.fill();
+  // Core
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 20; ctx.shadowColor = color;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#020812'; ctx.fill(); ctx.stroke();
+  // Inner dot
+  ctx.fillStyle = color; ctx.shadowBlur = 30;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.35, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // Labels
+  ctx.fillStyle = color; ctx.font = 'bold 11px Courier New';
+  ctx.textAlign = 'center'; ctx.letterSpacing = '3px';
+  ctx.fillText(label, x, y + r + 16);
+  ctx.fillStyle = color + '99'; ctx.font = '9px Courier New';
+  ctx.fillText(sub, x, y + r + 30);
+  ctx.restore();
+}
+
+function drawLine(x1, y1, x2, y2, color, alpha = 0.5, dash = []) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 8; ctx.shadowColor = color;
+  ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+let time = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  time += 0.012;
+
+  rotX += (targetRotX - rotX) * 0.07;
+  rotY += (targetRotY - rotY) * 0.07;
+  zoom += (targetZoom - zoom) * 0.07;
+  // Slow auto-rotate
+  if (!drag) targetRotY += 0.002;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background grid
+  ctx.save();
+  ctx.strokeStyle = '#00fff708';
+  ctx.lineWidth = 0.5;
+  for (let i = -10; i <= 10; i++) {
+    const a = project(i * 60, 380, -600);
+    const b = project(i * 60, 380, 600);
+    ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke();
+    const c = project(-600, 380, i * 60);
+    const d = project(600, 380, i * 60);
+    ctx.beginPath(); ctx.moveTo(c.sx, c.sy); ctx.lineTo(d.sx, d.sy); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Stars
+  stars.forEach(s => {
+    const p = project(s.x, s.y, s.z);
+    if (p.d > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.3 * p.d;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, s.r * p.d, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  // Compute projected layer positions
+  const offsets = [-200, -70, 70, 200];
+  const projected = LAYERS.map((L, i) => {
+    const x3d = offsets[i] * 0.5;
+    const p = project(0, L.y, 0);
+    return { ...L, px: p.sx, py: p.sy, pz: p.z, scale: p.d };
+  });
+
+  // Sort by z (painter's algo)
+  const sorted = [...projected].sort((a, b) => a.pz - b.pz);
+
+  // Draw connections first
+  for (let i = 0; i < LAYERS.length - 1; i++) {
+    const a = projected[i];
+    const b = projected[i + 1];
+    const pulse = (Math.sin(time * 2 + i) + 1) * 0.5;
+    drawLine(a.px, a.py, b.px, b.py, LAYERS[i].color, 0.2 + pulse * 0.3, [6, 6]);
+    // Pipe border
+    drawLine(a.px - 3, a.py, b.px - 3, b.py, LAYERS[i].color, 0.1 + pulse * 0.15);
+    drawLine(a.px + 3, a.py, b.px + 3, b.py, LAYERS[i].color, 0.1 + pulse * 0.15);
+  }
+
+  // Draw packets
+  packets.forEach(pk => {
+    pk.t += pk.speed;
+    if (pk.t > 1) pk.t = 0;
+    const seg = pk.segment % (LAYERS.length - 1);
+    const a = projected[seg];
+    const b = projected[seg + 1];
+    if (!a || !b) return;
+    const t = pk.t;
+    const px = a.px + (b.px - a.px) * t + pk.side * 0.05;
+    const py = a.py + (b.py - a.py) * t;
+    const col = LAYERS[seg].color;
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.shadowBlur = 14; ctx.shadowColor = col;
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+    if (pk.trail) {
+      ctx.globalAlpha = 0.25;
+      for (let tr = 1; tr <= 5; tr++) {
+        const tt = Math.max(0, t - tr * 0.025);
+        ctx.beginPath();
+        ctx.arc(
+          a.px + (b.px - a.px) * tt,
+          a.py + (b.py - a.py) * tt,
+          3.5 - tr * 0.5, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
+
+  // Draw nodes
+  sorted.forEach(L => {
+    const pulse = 1 + Math.sin(time * 1.5 + LAYERS.indexOf(sorted.indexOf(L))) * 0.04;
+    drawNode(L.px, L.py, 28 * L.scale * pulse, L.color, L.glow, L.label, L.sub, 0.95);
+  });
+
+  // Feature badges
+  const badges = [
+    { text: 'GPS TRACKING', x: -420, y: -10, color: '#ff6b35' },
+    { text: 'FUEL THEFT DETECTION', x: 320, y: 90, color: '#00fff7' },
+    { text: 'DRIVER MONITORING', x: -380, y: 200, color: '#bf5fff' },
+    { text: 'REAL-TIME ALERTS', x: 340, y: -80, color: '#00ff88' },
+  ];
+  badges.forEach(b => {
+    const p = project(b.x, b.y, 0);
+    ctx.save();
+    ctx.globalAlpha = 0.55 + Math.sin(time + b.x * 0.01) * 0.15;
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = 0.8;
+    ctx.shadowBlur = 6; ctx.shadowColor = b.color;
+    const tw = ctx.measureText(b.text).width + 20;
+    ctx.strokeRect(p.sx - tw / 2, p.sy - 10, tw, 20);
+    ctx.fillStyle = b.color + '15'; ctx.fillRect(p.sx - tw / 2, p.sy - 10, tw, 20);
+    ctx.fillStyle = b.color; ctx.font = '8px Courier New';
+    ctx.textAlign = 'center'; ctx.letterSpacing = '2px';
+    ctx.fillText(b.text, p.sx, p.sy + 4);
+    ctx.restore();
+  });
+
+  // Data flow labels on connections
+  const flowLabels = [
+    { text: 'GPS · FUEL · CAN', between: [0, 1] },
+    { text: 'EVENTS · ALERTS', between: [1, 2] },
+    { text: 'WEBSOCKET · REST', between: [2, 3] },
+  ];
+  flowLabels.forEach(fl => {
+    const a = projected[fl.between[0]];
+    const b = projected[fl.between[1]];
+    const mx = (a.px + b.px) / 2 + 30;
+    const my = (a.py + b.py) / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '8px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(fl.text, mx, my + 3);
+    ctx.restore();
+  });
+}
+
+animate();
+</script>
+</body>
+</html>

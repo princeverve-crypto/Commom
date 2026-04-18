@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOSYEL Fleet Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0e27; color: #e0e0e0; font-family: 'Inter', 'Segoe UI', sans-serif; }
+.container { display: flex; height: 100vh; }
+.sidebar { width: 280px; background: #0f1335; border-right: 1px solid #1a2456; padding: 24px; overflow-y: auto; }
+.main { flex: 1; display: flex; flex-direction: column; }
+.header { background: #0f1335; border-bottom: 1px solid #1a2456; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 24px; font-weight: 600; letter-spacing: 1px; color: #00fff7; text-shadow: 0 0 10px #00fff744; }
+.header .stats { display: flex; gap: 30px; }
+.stat-item { text-align: right; }
+.stat-value { font-size: 20px; font-weight: 600; color: #00ff88; }
+.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.content { flex: 1; padding: 24px; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; overflow-y: auto; }
+.card { background: #0f1335; border: 1px solid #1a2456; border-radius: 8px; padding: 20px; }
+.card.full { grid-column: 1 / -1; }
+.card h2 { font-size: 14px; font-weight: 600; color: #00fff7; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+.vehicle-card { background: linear-gradient(135deg, #0f1335 0%, #1a2456 100%); border: 1px solid #1a2456; padding: 16px; border-radius: 6px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+.vehicle-card:hover { border-color: #00fff7; background: linear-gradient(135deg, #1a2456 0%, #253366 100%); box-shadow: 0 0 15px #00fff744; }
+.vehicle-name { font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 8px; }
+.vehicle-info { display: flex; justify-content: space-between; font-size: 11px; color: #888; }
+.map { background: linear-gradient(135deg, #1a2456 0%, #253366 100%); border-radius: 6px; height: 400px; display: flex; align-items: center; justify-content: center; color: #666; position: relative; overflow: hidden; }
+.map::before { content: ''; position: absolute; inset: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20,0 L0,0 0,20" fill="none" stroke="%23ffffff" stroke-width="0.5" opacity="0.05"/></pattern></defs><rect width="400" height="300" fill="url(%23grid)"/></svg>'); }
+.map-marker { position: absolute; width: 12px; height: 12px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 10px #00ff88, 0 0 20px #00ff8844; }
+.map-marker.active { background: #ff6b35; box-shadow: 0 0 10px #ff6b35, 0 0 20px #ff6b3544; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+.fuel-gauge { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.gauge-label { font-size: 11px; color: #888; min-width: 70px; }
+.gauge-bar { flex: 1; height: 8px; background: #1a2456; border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.fuel-high .gauge-fill { background: linear-gradient(90deg, #00ff88, #00ffcc); width: 85%; }
+.fuel-med .gauge-fill { background: linear-gradient(90deg, #ffaa00, #ff6b35); width: 45%; }
+.fuel-low .gauge-fill { background: linear-gradient(90deg, #ff3333, #ff1111); width: 15%; }
+.alert { background: #1a2456; border-left: 3px solid #ff6b35; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.alert:hover { background: #253366; box-shadow: 0 0 15px #ff6b3544; }
+.alert.critical { border-left-color: #ff3333; }
+.alert.warning { border-left-color: #ffaa00; }
+.alert-time { color: #666; font-size: 10px; margin-top: 4px; }
+.btn { padding: 10px 16px; background: #00fff7; color: #0a0e27; border: none; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
+.btn:hover { background: #00ffcc; box-shadow: 0 0 15px #00fff744; }
+.sidebar-item { padding: 12px 16px; background: #1a2456; border-radius: 4px; margin-bottom: 8px; font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; color: #888; }
+.sidebar-item:hover, .sidebar-item.active { border-color: #00fff7; color: #00fff7; box-shadow: 0 0 10px #00fff744; }
+.metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a2456; font-size: 12px; }
+.metric:last-child { border-bottom: none; }
+.metric-label { color: #666; }
+.metric-value { color: #00ff88; font-weight: 600; }
+.status-badge { display: inline-block; padding: 4px 8px; background: #00ff88; color: #0a0e27; font-size: 10px; font-weight: 600; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+.status-badge.warning { background: #ffaa00; color: #0a0e27; }
+.status-badge.critical { background: #ff3333; color: #ffffff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="sidebar">
+    <h3 style="color: #00fff7; margin-bottom: 20px; font-size: 16px; letter-spacing: 1px;">FLEETS</h3>
+    <div class="sidebar-item active">West Africa Fleet (47)</div>
+    <div class="sidebar-item">Nairobi Fleet (23)</div>
+    <div class="sidebar-item">Lagos Operations (15)</div>
+    <div class="sidebar-item">Cairo Hub (31)</div>
+
+    <h3 style="color: #00fff7; margin: 30px 0 20px; font-size: 16px; letter-spacing: 1px;">QUICK STATS</h3>
+    <div class="metric">
+      <span class="metric-label">Active Vehicles</span>
+      <span class="metric-value">47</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Alerts (7d)</span>
+      <span class="metric-value" style="color: #ff6b35;">12</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Fuel Saved</span>
+      <span class="metric-value">$4,230</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Avg Efficiency</span>
+      <span class="metric-value">92%</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <h1>JOSYEL Fleet Intelligence</h1>
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-value">47/47</div>
+          <div class="stat-label">Online</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Active Alerts</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">12.4h</div>
+          <div class="stat-label">Avg Runtime</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="card full">
+        <h2>Live Fleet Map</h2>
+        <div class="map">
+          <div class="map-marker" style="top: 20%; left: 15%;"></div>
+          <div class="map-marker active" style="top: 35%; left: 45%;"></div>
+          <div class="map-marker" style="top: 50%; left: 70%;"></div>
+          <div class="map-marker" style="top: 65%; left: 25%;"></div>
+          <div class="map-marker" style="top: 75%; left: 60%;"></div>
+          <div style="position: absolute; bottom: 16px; left: 16px; font-size: 10px; color: #666;">Leaflet Map • Real-time GPS positioning</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Active Vehicles</h2>
+        <div class="vehicle-card">
+          <div class="vehicle-name">Vehicle #001 - Truck</div>
+          <div class="vehicle-info">
+            <span>Fuel: 78%</span>
+            <span class="status-badge">ACTIVE</span>
+          </div>
+        </div>
+        <div class="vehicle-card">
+          <div class="vehicle-name">Vehicle #005 - Van</div>
+          <div class="vehicle-info">
+            <span>Fuel: 34%</span>
+            <span class="status-badge warning">LOW FUEL</span>
+          </div>
+        </div>
+        <div class="vehicle-card">
+          <div class="vehicle-name">Vehicle #012 - Cargo</div>
+          <div class="vehicle-info">
+            <span>Fuel: 92%</span>
+            <span class="status-badge">ACTIVE</span>
+          </div>
+        </div>
+        <button class="btn" style="width: 100%; margin-top: 12px;">View All Vehicles</button>
+      </div>
+
+      <div class="card">
+        <h2>Fuel Monitoring</h2>
+        <div class="fuel-gauge fuel-high">
+          <span class="gauge-label">Vehicle #001</span>
+          <div class="gauge-bar"><div class="gauge-fill"></div></div>
+          <span style="color: #00ff88; font-weight: 600; font-size: 11px;">78%</span>
+        </div>
+        <div class="fuel-gauge fuel-med">
+          <span class="gauge-label">Vehicle #005</span>
+          <div class="gauge-bar"><div class="gauge-fill"></div></div>
+          <span style="color: #ffaa00; font-weight: 600; font-size: 11px;">34%</span>
+        </div>
+        <div class="fuel-gauge fuel-high">
+          <span class="gauge-label">Vehicle #012</span>
+          <div class="gauge-bar"><div class="gauge-fill"></div></div>
+          <span style="color: #00ff88; font-weight: 600; font-size: 11px;">92%</span>
+        </div>
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #1a2456; font-size: 11px; color: #666;">
+          Real-time fuel level via CAN bus & sensor data
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Active Alerts</h2>
+        <div class="alert critical">
+          <strong>🚨 Fuel Theft Detected</strong><br>
+          Vehicle #008 lost 18L in 90 sec (2:34 AM)<br>
+          <span class="alert-time">2 minutes ago</span>
+        </div>
+        <div class="alert">
+          <strong>⚠️ Harsh Braking</strong><br>
+          Vehicle #003 harsh braking x5 (Route: Accra-Tema)<br>
+          <span class="alert-time">15 minutes ago</span>
+        </div>
+        <div class="alert warning">
+          <strong>⏱️ Excessive Idling</strong><br>
+          Vehicle #015 idling 28 min (7:45 PM start)<br>
+          <span class="alert-time">1 hour ago</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Driver Performance</h2>
+        <div class="metric">
+          <span class="metric-label">Avg Score</span>
+          <span class="metric-value">8.7/10</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Top Driver</span>
+          <span class="metric-value" style="color: #00ff88;">Driver #042</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Incidents (7d)</span>
+          <span class="metric-value" style="color: #ff6b35;">8</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Improvement</span>
+          <span class="metric-value" style="color: #00ff88;">↑ 12%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
