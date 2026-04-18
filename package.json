@@ -1,0 +1,19 @@
+{
+  "name": "josyel-fleet-intelligence",
+  "version": "1.0.0",
+  "description": "Fleet Intelligence System - Real-time tracking, fuel theft detection, driver monitoring",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "echo 'Static site ready'"
+  },
+  "keywords": ["fleet", "tracking", "fuel-detection", "telematics"],
+  "author": "JOSYEL",
+  "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
