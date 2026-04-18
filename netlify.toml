@@ -1,0 +1,24 @@
+[build]
+  publish = "."
+  command = "echo 'Static site - no build needed'"
+
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/architecture"
+  to = "/josyel-arch-3d.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/josyel-dashboard.html"
+  status = 200
+
+[context.production]
+  command = "echo 'Production build'"
+
+[context.deploy-preview]
+  command = "echo 'Preview build'"
