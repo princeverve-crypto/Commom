@@ -1,0 +1,12 @@
+node_modules
+backend
+frontend
+.git
+.gitignore
+CLAUDE.md
+CAVEMAN_SETUP.md
+*.md
+server.js
+package.json
+netlify.toml
+.claude

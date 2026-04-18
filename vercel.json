@@ -1,15 +1,4 @@
 {
-  "version": 2,
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "public": true,
-  "buildCommand": "npm install && echo 'Build complete'",
-  "outputDirectory": ".",
-  "functions": {
-    "server.js": {
-      "memory": 128,
-      "maxDuration": 10
-    }
-  }
+  "buildCommand": "",
+  "outputDirectory": "public"
 }
